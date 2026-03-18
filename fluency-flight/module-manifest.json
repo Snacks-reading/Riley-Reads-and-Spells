@@ -1,0 +1,30 @@
+{
+  "categoryId": "fluency-flight",
+  "lessons": [
+    {
+      "code": "FF1",
+      "title": "Timed Passage Reading",
+      "folder": "FF1_timed-passage-reading"
+    },
+    {
+      "code": "FF2",
+      "title": "Expression Practice",
+      "folder": "FF2_expression-practice"
+    },
+    {
+      "code": "FF3",
+      "title": "Phrasing Practice",
+      "folder": "FF3_phrasing-practice"
+    },
+    {
+      "code": "FF4",
+      "title": "Accuracy Tracker",
+      "folder": "FF4_accuracy-tracker"
+    },
+    {
+      "code": "FF5",
+      "title": "WPM Growth",
+      "folder": "FF5_wpm-growth"
+    }
+  ]
+}
