@@ -70,18 +70,7 @@
       border-color:rgba(255,180,180,.20);
     }
     .scriptBar{
-      margin:0 18px 10px;
-      padding:10px 14px;
-      min-height:48px;
-      max-height:96px;
-      overflow:auto;
-      border-radius:16px;
-      border:1px solid rgba(255,255,255,.08);
-      background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.06));
-      color:#f6efdf;
-      font-size:15px;
-      line-height:1.24;
-      flex:0 0 auto;
+      display:none;
     }
     .shell{
       margin:0 18px 18px;
@@ -89,7 +78,7 @@
       border-radius:26px;
       border:1px solid rgba(255,255,255,.08);
       background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.08));
-      height:calc(100vh - 156px);
+      height:calc(100vh - 108px);
       min-height:0;
       flex:1 1 auto;
     }
@@ -302,7 +291,7 @@
     <label class="btn toggle"><input id="voiceToggle" type="checkbox" checked> Voice</label>
   </div>
 
-  <div class="scriptBar" id="scriptBar"><div>Script will appear here when teaching or prompting begins.</div></div>
+  <div class="scriptBar" id="scriptBar"></div>
 
   <div class="shell">
     <div class="lessonLayout">
@@ -399,31 +388,16 @@
     let delayedRemaining = 0;
     let delayedStartedAt = 0;
     let delayedCallback = null;
-    let currentScript = [];
 
     function voiceEnabled() {
       return $("voiceToggle").checked;
     }
 
-    function resetScript(lines) {
-      currentScript = (lines || []).filter(Boolean);
+    function resetScript() {
       const bar = $("scriptBar");
-      bar.innerHTML = "";
-      if (!currentScript.length) {
-        const div = document.createElement("div");
-        div.textContent = "Script will appear here when teaching or prompting begins.";
-        bar.appendChild(div);
-        return;
+      if (bar) {
+        bar.innerHTML = "";
       }
-      currentScript.forEach((line, idx) => {
-        const div = document.createElement("div");
-        div.textContent = line;
-        div.dataset.idx = String(idx);
-        div.style.opacity = idx === 0 ? "1" : ".6";
-        div.style.marginBottom = "4px";
-        bar.appendChild(div);
-      });
-      bar.scrollTop = 0;
     }
 
     function normalizeSpeechKey(text) {
@@ -460,38 +434,22 @@
       }
     }
 
-    function markScriptLineActive(lineText) {
-      const bar = $("scriptBar");
-      const children = Array.from(bar.children);
-      children.forEach(el => { el.style.opacity = ".45"; el.style.fontWeight = "500"; });
-      const target = children.find(el => el.textContent === lineText);
-      if (target) {
-        target.style.opacity = "1";
-        target.style.fontWeight = "800";
-        const targetTop = target.offsetTop - 8;
-        const targetBottom = targetTop + target.offsetHeight + 8;
-        const viewTop = bar.scrollTop;
-        const viewBottom = viewTop + bar.clientHeight;
-        let nextTop = viewTop;
-        if (targetTop < viewTop) nextTop = Math.max(0, targetTop);
-        else if (targetBottom > viewBottom) nextTop = Math.max(0, targetBottom - bar.clientHeight);
-        if (Math.abs(nextTop - bar.scrollTop) > 4) bar.scrollTo({ top: nextTop, behavior: 'smooth' });
-      }
-      markPanelLineActive(lineText);
-    }
-
     function speak(lines, done) {
-      resetScript(lines);
+      const spokenLines = (lines || []).filter(Boolean);
+      resetScript();
+
       if (!voiceEnabled()) {
-        currentScript.forEach(line => markScriptLineActive(line));
+        spokenLines.forEach(line => markPanelLineActive(line));
         if (done) done();
         return;
       }
+
       if (!window.RR_SPEECH || !window.RR_SPEECH.speakQueue) {
         if (done) done();
         return;
       }
-      window.RR_SPEECH.speakQueue(currentScript, done, markScriptLineActive);
+
+      window.RR_SPEECH.speakQueue(spokenLines, done, markPanelLineActive);
     }
 
     function scheduleDelay(ms, callback) {
@@ -727,7 +685,7 @@
 
       speak([
         item.fullSentence,
-        item.spokenPrompt || `Spell the word ${item.answer}.`
+        item.spokenPrompt || "Type the missing word."
       ]);
 
       window.RR_SESSION.persist(session);
@@ -856,7 +814,7 @@
         speak([
           item.reteach || lessonBundle.data.lesson.ruleSummary,
           item.fullSentence,
-          item.spokenPrompt || `Spell the word ${item.answer}.`
+          item.spokenPrompt || "Type the missing word."
         ]);
 
         window.RR_SESSION.persist(session);
@@ -875,7 +833,7 @@
           "Second hint.",
           item.reteach || lessonBundle.data.lesson.ruleSummary,
           item.fullSentence,
-          item.spokenPrompt || `Spell the word ${item.answer}.`
+          item.spokenPrompt || "Type the missing word."
         ]);
 
         window.RR_SESSION.persist(session);
@@ -942,8 +900,14 @@
 
       if (delayedRemaining > 0 && delayedCallback) {
         scheduleDelay(delayedRemaining, delayedCallback);
-      } else if (currentScript.length) {
-        speak(currentScript);
+      } else {
+        const item = currentItem();
+        if (item) {
+          speak([
+            item.fullSentence,
+            item.spokenPrompt || "Type the missing word."
+          ]);
+        }
       }
 
       if (session) {
@@ -972,7 +936,7 @@
       if (item) {
         speak([
           item.fullSentence,
-          item.spokenPrompt || `Spell the word ${item.answer}.`
+          item.spokenPrompt || "Type the missing word."
         ]);
       }
     }
@@ -1020,7 +984,7 @@
         lessonBundle.lessonCode
       );
 
-      $("scriptBar").textContent = "Lesson reset. Test practice from this run will not carry forward.";
+      resetScript();
       renderTeaching();
       renderPracticeItem();
       updateStats();
@@ -1066,7 +1030,15 @@
           "A14": "A14_irregular-spellings",
           "A15": "A15_greek-latin-roots",
           "A16": "A16_advanced-vowel-patterns",
-          "A17": "A17_multi-syllable-encoding"
+          "A17": "A17_multi-syllable-encoding",
+          "A18": "A18_verb-noun",
+          "A19": "A19_noun-adjective",
+          "A20": "A20_adjective-adverb",
+          "A21": "A21_compound-words",
+          "A22": "A22_or-our",
+          "A23": "A23_er-re",
+          "A24": "A24_ze-se",
+          "A25": "A25_double-l"
         };
 
         const folder =
@@ -1074,7 +1046,6 @@
           (cat === "star-speller" ? starFallback[lesson] : null) ||
           lesson;
 
-        // FIXED: removed modules/ prefix because your repo stores category folders at root
         const dataPath = `${cat}/${folder}/data.js`;
 
         window.RR_LESSON_DATA = null;
@@ -1100,7 +1071,7 @@
         updateStats();
       } catch (err) {
         $("lessonTitle").textContent = "Lesson load error";
-        $("scriptBar").textContent = err.message;
+        resetScript();
         $("sentence").textContent = err.message;
         console.error(err);
       }
